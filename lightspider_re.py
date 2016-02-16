@@ -80,10 +80,10 @@ def iterate_detail_page(detail_link):
 	html = response.read()
 
 	print info
-	#img_id = re.compile(r"img src=\"(.+) border=\"0\"(.+)\"")
-	#match_id = list(set(img_id.findall(html)))
+	img_id = re.compile(r"src=\"http://.+?\.jpg\"")
+	match_id = list(set(img_id.findall(html)))
 	
-	#print match_id
+	print match_id
 	
 def store_detail_link(match_id):
 	conn = sqlite3.connect("./lightspider.s3db")
@@ -108,5 +108,6 @@ store_detail_link(detail_link_list)
 
 for detail_link in detail_link_list:
 	iterate_detail_page(detail_link)
+	time.sleep(0.1) # sleep 100ms
 
  
