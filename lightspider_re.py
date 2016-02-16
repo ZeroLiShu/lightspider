@@ -120,6 +120,11 @@ def iterate_detail_page(detail_link):
     print info
     img_id = re.compile(r"src=\"http://.+?\.jpg\"")
     match_id = list(set(img_id.findall(html)))
+    
+    bt_id = re.compile(r"href=\"http://www\.jandown\.com/link\.php\?ref=[a-zA-Z0-9]+\"")
+    bt_match_id = list(set(bt_id.findall(html)))
+    print bt_match_id
+    
     dir = detail_link_id(detail_link)
     
     if not os.path.exists(dir):
