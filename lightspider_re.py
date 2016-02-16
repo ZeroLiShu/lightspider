@@ -65,6 +65,7 @@ def get_img_from_url(dir, jpg_link):
         elif hasattr(e, 'reason'):
             print 'We failed to reach a server.'
             print 'Reason: ', e.reason
+        return
     except socket.error:
         print('socket.error: %s'%jpg_link)
         return
