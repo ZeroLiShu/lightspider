@@ -1,18 +1,18 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
-from urllib2 import Request, urlopen, URLError, HTTPError
-import StringIO, gzip, re, sqlite3, time, os, socket
+import zip_wrapper, os_wrapper, page_wrapper, db_wrapper, time
 
+#constant
 HOST_URL = 'http://208.94.244.98/bt/'
 START_URL = HOST_URL + 'thread.php?fid=4&page='
+DB_NAME = 'lightspider.s3db'
+MAX_SIZE = 1000*1000*100
 
 ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
 ACCEPT_ENCODING = 'gzip, deflate, sdch'
 ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.8'
 CACHE_CONTROL = 'max-age=0'
 CONNECTION = 'keep-alive'
-#Cookie:c1707_ol_offset=72556; is_use_cookied=yes; is_use_cookiex=yes; c1707_lastpos=F4; c1707_lastvisit=17%091455586985%09%2Fbt%2Fthread.php%3Ffid%3D4%26page%3D1; c1707_threadlog=%2C4%2C
-#Host:208.94.244.98
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.94 Safari/537.36'
 
 HEADERS = { 'User-Agent' : USER_AGENT,
@@ -22,144 +22,79 @@ HEADERS = { 'User-Agent' : USER_AGENT,
     'Connection' : CONNECTION,
 }
 
- 
-def gzdecode(data):
-    compressedstream = StringIO.StringIO(data)
-    gziper = gzip.GzipFile(fileobj=compressedstream) 
-    data2 = gziper.read()
-    return data2
+#helper
+pagehelper = page_wrapper.page_avgirls_helper()
+ziphelper = zip_wrapper.tar_helper()
+dbhelper = db_wrapper.db_avgirls_helper(DB_NAME)
 
-def detail_link_id(detail_link):
-    href_split = detail_link.split('/')
-    last = len(href_split) - 1
-    link_id = href_split[last].strip('.html')
-    return link_id
-           
-def detail_link_gen(match_list):
-    for href in match_list:
-        link_id = detail_link_id(href)
-        yield (link_id, href)
+#spider class
+class spider_index_detail:
+	"""spider for crawling index page and following detail pages"""
+	#private:
 
-def jpg_link(jpg_link):
-    jpg_split = jpg_link.split('=')
-    last = len(jpg_split) - 1
-    link = jpg_split[last].strip('\"')
-    return link
+	#dict<href_id, href>
+	_detail_href_dict = {}
+	
+	#public:
+	def run(self):
+		self._iterate_index_page(1, 1001)
+		self._iterate_detail_page()
+		self._iterate_store_download()
+	
+	#private:
+	def _iterate_index_page(self, istart, iend):
+		detail_href_list = []
+		for index in range(istart, iend):
+			detail_href_list.extend(self._index_page(index))
+			time.sleep(0.1) # sleep 100ms
+			print('extend detail_href_list by %d links'%(len(detail_href_list)))
+		self._detail_href_dict = {pagehelper.get_href_id(href):href for href in detail_href_list}
 
-def write_file(dir, filename, content):
-    filename=os.path.join(dir, filename)
-    f = open(filename, 'wb')
-    f.write(content)
-    f.close()
+	def _iterate_detail_page(self):
+		for href_id, href in self._detail_href_dict.iteritems():
+			self._detail_page(href_id, href)
+			time.sleep(0.1)
 
-def get_img_from_url(dir, jpg_link):
-    req = Request(jpg_link, headers=HEADERS)
-    try:
-        response = urlopen(req, timeout=3)
-        info = response.info()
-        content = response.read()
-    except URLError, e:
-        if hasattr(e, 'code'):
-            print 'The server couldn\'t fulfill the request.'
-            print 'Error code: ', e.code
-        elif hasattr(e, 'reason'):
-            print 'We failed to reach a server.'
-            print 'Reason: ', e.reason
-        return
-    except socket.error:
-        print('socket.error: %s'%jpg_link)
-        return
-    
-    jpg_link_list = jpg_link.split('/')
-    img_name = jpg_link_list[len(jpg_link_list) - 1]
-    write_file(dir, img_name, content)
+	def _iterate_store_download(self):
+		row_list = []
+		total_size = 0
+		for href_id, href in self._detail_href_dict.iteritems():
+			#load .tar.gz file to memory
+			size, content = os_wrapper.read_file(".", href_id + ".tar.gz")
+			#create a new row and add to the dict
+			row_list.append((href_id, href, content))
+			#check if memory size is big, store to the database
+			total_size += size
+			if total_size > MAX_SIZE:
+				dbhelper.update_detail_link_table(row_list)
+				row_list = []
+		#final store
+		dbhelper.update_detail_link_table(row_list)
 
-def iterate_index_page(index):
-    req = Request(START_URL + str(index), headers=HEADERS)
-    try:
-        response = urlopen(req)
-    except URLError, e:
-        if hasattr(e, 'code'):
-            print 'The server couldn\'t fulfill the request.'
-            print 'Error code: ', e.code
-        elif hasattr(e, 'reason'):
-            print 'We failed to reach a server.'
-            print 'Reason: ', e.reason
+	def _index_page(self, index):
+		info, content = pagehelper.get_page_content(START_URL + str(index), HEADERS, 3)
+		if info['Content-Encoding'] == "gzip":
+			content = zip_wrapper.gzip_decode_from_bytes(content)
+		return pagehelper.get_detailpage_href_from_indexpage(content)
 
-    info = response.info()
+	def _detail_page(self, href_id, href):
+		info, content = pagehelper.get_page_content(HOST_URL + href, HEADERS, 3)
+		pic_list = pagehelper.get_pic_href_from_detailpage(content)
+		bt_list = pagehelper.get_bt_href_from_detailpage(content)
+		self._detail_page_download(href_id, pic_list, bt_list)
 
-    html = ""
-    if info['Content-Encoding'] == "gzip":
-        html = gzdecode(response.read())
-    else:
-        html = response.read()
+	def _detail_page_download(self, href_id, pic_list, bt_list):
+		#make a bundle download directory for href_id
+		os_wrapper.check_and_create_dir(href_id)
+		#download pictures to local files
+		for pic in pic_list:
+			info, content = pagehelper.get_page_content(pic, HEADERS, 3)
+			pic_split = pic.split('/')
+			pic_name = pic_split[len(jpg_link_list) - 1]
+			os_wrapper.write_file(href_id, pic_name, content)
+			time.sleep(0.1)
+		#compress the bundle download directory
+		ziphelper.zip_dir(href_id)
 
-    #print html
-    #print info
-    
-    a_id = re.compile(r"htm_data/\d+/\d+/\d+\.html")
-    match_id = list(set(a_id.findall(html)))
-
-    return match_id
-
-def iterate_detail_page(detail_link):
-    req = Request(HOST_URL + detail_link, headers=HEADERS)
-    try:
-        response = urlopen(req)
-    except URLError, e:
-        if hasattr(e, 'code'):
-            print 'The server couldn\'t fulfill the request.'
-            print 'Error code: ', e.code
-        elif hasattr(e, 'reason'):
-            print 'We failed to reach a server.'
-            print 'Reason: ', e.reason
-
-    info = response.info()
-    html = response.read()
-
-    print info
-    img_id = re.compile(r"src=\"http://.+?\.jpg\"")
-    match_id = list(set(img_id.findall(html)))
-    
-    bt_id = re.compile(r"href=\"http://www\.jandown\.com/link\.php\?ref=[a-zA-Z0-9]+\"")
-    bt_match_id = list(set(bt_id.findall(html)))
-    print bt_match_id
-    
-    dir = detail_link_id(detail_link)
-    
-    if not os.path.exists(dir):
-        os.mkdir(dir)
-        
-    for link in match_id:
-        link = jpg_link(link)
-        print('get_img_from_url: %s:%s'%(dir, link))
-        get_img_from_url(dir, link)
-        time.sleep(0.1)
-
-def store_detail_link(match_id):
-    conn = sqlite3.connect("./lightspider.s3db")
-    c = conn.cursor()
-    # Create table
-    c.execute('''create table if not exists detail_link(link_id text PRIMARY KEY, link_href text)''')
-
-    c.executemany('''replace into detail_link(link_id, link_href) values(?, ?)''', detail_link_gen(match_id))
-
-    # Save (commit) the changes
-    conn.commit()
-    # We can also close the cursor if we are done with it
-    c.close()
-
-detail_link_list = []
-for index in range(1, 2):
-    detail_link_list.extend(iterate_index_page(index))
-    time.sleep(0.1) # sleep 100ms
-    print('extend detail_link_list by %d links'%(len(detail_link_list)))
-
-store_detail_link(detail_link_list)
-
-
-for detail_link in detail_link_list:
-    iterate_detail_page(detail_link)
-    time.sleep(0.1) # sleep 100ms
-
- 
+spider = spider_index_detail()
+spider.run()
