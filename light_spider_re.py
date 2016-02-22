@@ -7,6 +7,7 @@ HOST_URL = 'http://208.94.244.98/bt/'
 START_URL = HOST_URL + 'thread.php?fid=4&page='
 DB_NAME = 'lightspider.s3db'
 MAX_SIZE = 1000*1000*100
+MAX_PAGE_INDEX = 10
 
 ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
 ACCEPT_ENCODING = 'gzip, deflate, sdch'
@@ -30,35 +31,42 @@ dbhelper = db_wrapper.db_avgirls_helper(DB_NAME)
 #spider class
 class spider_index_detail:
 	"""spider for crawling index page and following detail pages"""
-	#private:
-
-	#dict<href_id, href>
-	_detail_href_dict = {}
 	
 	#public:
-	def run(self):
-		self._iterate_index_page(1, 1001)
-		self._iterate_detail_page()
-		self._iterate_store_download()
-	
-	#private:
-	def _iterate_index_page(self, istart, iend):
+
+	def iterate_index_page(self, istart, iend):
 		detail_href_list = []
 		for index in range(istart, iend):
-			detail_href_list.extend(self._index_page(index))
+			iter_href_list = self._index_page(index)
+			if iter_href_list == None:
+				continue
+			detail_href_list.extend(iter_href_list)
 			time.sleep(0.1) # sleep 100ms
 			print('extend detail_href_list by %d links'%(len(detail_href_list)))
-		self._detail_href_dict = {pagehelper.get_href_id(href):href for href in detail_href_list}
+		return detail_href_list
 
-	def _iterate_detail_page(self):
-		for href_id, href in self._detail_href_dict.iteritems():
+	def iterate_detail_page(self, href):
+		href_id = pagehelper.get_href_id(href)
+		info, content = pagehelper.get_page_content(HOST_URL + href, HEADERS, 3)
+		if info == None or content == None:
+			return None
+		
+		pic_list = pagehelper.get_pic_href_from_detailpage(content)
+		bt_list = pagehelper.get_bt_href_from_detailpage(content)
+		self._detail_page_download(href_id, pic_list, bt_list)
+		return href_id
+	
+	#private:
+
+	def _iterate_detail_page(self, detail_href_dict):
+		for href_id, href in detail_href_dict.iteritems():
 			self._detail_page(href_id, href)
 			time.sleep(0.1)
 
-	def _iterate_store_download(self):
+	def _iterate_store_download(self, detail_href_dict):
 		row_list = []
 		total_size = 0
-		for href_id, href in self._detail_href_dict.iteritems():
+		for href_id, href in detail_href_dict.iteritems():
 			#load .tar.gz file to memory
 			size, content = os_wrapper.read_file(".", href_id + ".tar.gz")
 			#create a new row and add to the dict
@@ -73,15 +81,12 @@ class spider_index_detail:
 
 	def _index_page(self, index):
 		info, content = pagehelper.get_page_content(START_URL + str(index), HEADERS, 3)
+		if info == None or content == None:
+			return None
+		
 		if info['Content-Encoding'] == "gzip":
 			content = zip_wrapper.gzip_decode_from_bytes(content)
 		return pagehelper.get_detailpage_href_from_indexpage(content)
-
-	def _detail_page(self, href_id, href):
-		info, content = pagehelper.get_page_content(HOST_URL + href, HEADERS, 3)
-		pic_list = pagehelper.get_pic_href_from_detailpage(content)
-		bt_list = pagehelper.get_bt_href_from_detailpage(content)
-		self._detail_page_download(href_id, pic_list, bt_list)
 
 	def _detail_page_download(self, href_id, pic_list, bt_list):
 		#make a bundle download directory for href_id
@@ -89,12 +94,12 @@ class spider_index_detail:
 		#download pictures to local files
 		for pic in pic_list:
 			info, content = pagehelper.get_page_content(pic, HEADERS, 3)
+			if info == None or content == None:
+				continue
+			
 			pic_split = pic.split('/')
-			pic_name = pic_split[len(jpg_link_list) - 1]
+			pic_name = pic_split[len(pic_split) - 1]
 			os_wrapper.write_file(href_id, pic_name, content)
 			time.sleep(0.1)
 		#compress the bundle download directory
-		ziphelper.zip_dir(href_id)
-
-spider = spider_index_detail()
-spider.run()
+		#ziphelper.zip_dir(href_id)

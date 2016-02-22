@@ -7,9 +7,10 @@ class page_helper:
 	""""basic page operations"""
 	
 	def get_page_content(self, url, headers={}, timeout=0):
+		print('get_page_content url=%s'%url)
 		req = Request(url, headers=headers)
 		try:
-			response = urlopen(req, timeout)
+			response = urlopen(req, timeout=timeout)
 			return response.info(), response.read()
 		except URLError, e:
 			if hasattr(e, 'code'):
@@ -18,10 +19,10 @@ class page_helper:
 			elif hasattr(e, 'reason'):
 				print 'We failed to reach a server.'
 				print 'Reason: ', e.reason
-			return
+			return None, None
 		except socket.error:
-			print('socket.error: %s'%jpg_link)
-			return
+			print('socket.error: %s'%url)
+			return None, None
 
 	def get_href_id(self, href):
 		href_split = href.split('/')
@@ -38,8 +39,8 @@ class page_avgirls_helper(page_helper):
 	
 	def get_pic_href_from_detailpage(self, detail_html):
 		pic_match = re.compile(r"http://.+?\.jpg")
-		return list(set(img_id.findall(detail_html)))
+		return list(set(pic_match.findall(detail_html)))
 
 	def get_bt_href_from_detailpage(self, detail_html):
 		bt_match = re.compile(r"http://www\.jandown\.com/link\.php\?ref=[a-zA-Z0-9]+")
-		return list(set(bt_id.findall(detail_html)))
+		return list(set(bt_match.findall(detail_html)))

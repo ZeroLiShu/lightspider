@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import StringIO, gzip, os, tarfile
 
-def gzip_decode_from_bytes(self, data):
+def gzip_decode_from_bytes(data):
 	compressedstream = StringIO.StringIO(data)
 	gziper = gzip.GzipFile(fileobj=compressedstream) 
 	decompressed_data = gziper.read()
