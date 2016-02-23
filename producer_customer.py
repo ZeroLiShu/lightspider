@@ -51,6 +51,8 @@ class mediator(threading.Thread):
         while True:
             if self.data_in.qsize() > 0:
                 new_job = self._consume(self.data_in.get())
+                if new_job == None:
+                    continue
                 self.data_out.put(new_job)
             time.sleep(0.1)
     

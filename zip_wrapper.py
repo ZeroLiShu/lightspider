@@ -20,13 +20,15 @@ class tar_helper:
 		if not os.path.isdir(dirname):
 			print('dir_path is invalid: %s'%(dirname))
 			return
-		t = tarfile.open(dirname + ".tar.gz", "w:gz")
+		zip_filename = dirname + ".tar.gz"
+		t = tarfile.open(zip_filename, "w:gz")
 		for root, dir, files in os.walk(dirname):
 			print root, dir, files
 			for file in files:
 				fullpath = os.path.join(root, file)
 				t.add(fullpath)
 		t.close()
+		return zip_filename
 
 	def unzip_dir(self, filename, todir='.'):
 		if not os.path.isfile(filename):

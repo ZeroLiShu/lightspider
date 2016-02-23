@@ -32,4 +32,13 @@ class detail_spider(mediator):
     
     def _consume(self, job):
         return spider_op.iterate_detail_page(job)
-        
+
+class zip_spider(customer):
+	
+	def __init__(self, name, jobq):
+		customer.__init__(self, name, jobq)
+	
+	def _consume(self, job):
+		(href_id, href) = job
+		return spider_op.zip_into_db(href_id, href)
+

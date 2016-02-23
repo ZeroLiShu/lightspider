@@ -54,30 +54,19 @@ class spider_index_detail:
 		pic_list = pagehelper.get_pic_href_from_detailpage(content)
 		bt_list = pagehelper.get_bt_href_from_detailpage(content)
 		self._detail_page_download(href_id, pic_list, bt_list)
-		return href_id
+		return (href_id, href)
 	
-	#private:
-
-	def _iterate_detail_page(self, detail_href_dict):
-		for href_id, href in detail_href_dict.iteritems():
-			self._detail_page(href_id, href)
-			time.sleep(0.1)
-
-	def _iterate_store_download(self, detail_href_dict):
+	def zip_into_db(self, href_id, href):
+		zip_filename = ziphelper.zip_dir(href_id)
+		print('generate zip file %s'%zip_filename)
+		size, content = os_wrapper.read_file(".", zip_filename)
+		
 		row_list = []
-		total_size = 0
-		for href_id, href in detail_href_dict.iteritems():
-			#load .tar.gz file to memory
-			size, content = os_wrapper.read_file(".", href_id + ".tar.gz")
-			#create a new row and add to the dict
-			row_list.append((href_id, href, content))
-			#check if memory size is big, store to the database
-			total_size += size
-			if total_size > MAX_SIZE:
-				dbhelper.update_detail_link_table(row_list)
-				row_list = []
-		#final store
+		row_list.append((href_id, href, content))
 		dbhelper.update_detail_link_table(row_list)
+		print('update_detail_link_table with %s'%href_id)
+		
+	#private:
 
 	def _index_page(self, index):
 		info, content = pagehelper.get_page_content(START_URL + str(index), HEADERS, 3)

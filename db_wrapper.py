@@ -23,6 +23,7 @@ class db_avgirls_helper:
 	
 	def __init__(self, dbname):
 		self._dbname = dbname
+		self.create_db()
 
 	def create_db(self):
 		conn = sqlite3.connect(self._dbname)
