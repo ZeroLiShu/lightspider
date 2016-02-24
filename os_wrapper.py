@@ -26,3 +26,14 @@ def read_file(dir, filename):
 def check_and_create_dir(dir):
     if not os.path.exists(dir):
         os.mkdir(dir)
+
+def remove_file(dir, filename):
+    filepath=os.path.join(dir, filename)
+    if os.path.isfile(filepath):
+        os.remove(filepath)
+    elif os.path.isdir(filepath):
+        filelist = os.listdir(filepath)
+        for f in filelist:
+            remove_file(filepath, f)
+        os.rmdir(filepath)
+

@@ -7,7 +7,7 @@ HOST_URL = 'http://208.94.244.98/bt/'
 START_URL = HOST_URL + 'thread.php?fid=4&page='
 DB_NAME = 'lightspider.s3db'
 MAX_SIZE = 1000*1000*100
-MAX_PAGE_INDEX = 10
+MAX_PAGE_INDEX = 1000
 
 ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
 ACCEPT_ENCODING = 'gzip, deflate, sdch'
@@ -62,8 +62,10 @@ class spider_index_detail:
 		size, content = os_wrapper.read_file(".", zip_filename)
 		
 		row_list = []
-		row_list.append((href_id, href, content))
+		row_list.append((href_id, href, buffer(content)))
 		dbhelper.update_detail_link_table(row_list)
+		os_wrapper.remove_file('.', href_id)
+		os_wrapper.remove_file('.', zip_filename)
 		print('update_detail_link_table with %s'%href_id)
 		
 	#private:
