@@ -32,12 +32,16 @@ dbhelper = db_wrapper.db_avgirls_helper(DB_NAME)
 class spider_index_detail:
 	"""spider for crawling index page and following detail pages"""
 	
+        #priviate:
+
+        db_detail_href_list = dbhelper.get_all_link_href()
 	#public:
 
 	def iterate_index_page(self, istart, iend):
 		detail_href_list = []
 		for index in range(istart, iend):
 			iter_href_list = self._index_page(index)
+                        iter_href_list = list(set(iter_href_list).difference(db_detail_href_list)
 			if iter_href_list == None:
 				continue
 			detail_href_list.extend(iter_href_list)
