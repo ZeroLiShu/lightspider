@@ -15,8 +15,8 @@ class db_avgirls_helper:
 		]
 
 		helper.update_detail_link_table(row_list)
-		link_id_list = helper.get_all_link_id()
-		print link_id_list
+		link_href_list = helper.get_all_link_href()
+		print link_href_list
 	"""
 	#private:
 	_dbname = ""
@@ -34,12 +34,10 @@ class db_avgirls_helper:
 		# We can also close the cursor if we are done with it
 		conn.close()
 	
-	def get_all_link_id(self):
+	def get_all_link_href(self):
 		conn = sqlite3.connect(self._dbname)
-		link_id_list = []
-		for row in conn.execute('''select link_id from detail_link'''):
-			link_id_list.append(row[0])
-		return link_id_list
+		link_href_list = [row[0] for row in conn.execute('''select link_href from detail_link''')]
+		return link_href_list
 	
 	def update_detail_link_table(self, row_list):
 		conn = sqlite3.connect(self._dbname)
