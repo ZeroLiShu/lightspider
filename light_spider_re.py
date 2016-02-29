@@ -41,9 +41,9 @@ class spider_index_detail:
 		detail_href_list = []
 		for index in range(istart, iend):
 			iter_href_list = self._index_page(index)
-                        iter_href_list = list(set(iter_href_list).difference(db_detail_href_list)
 			if iter_href_list == None:
 				continue
+			iter_href_list = list(set(iter_href_list).difference(self.db_detail_href_list))
 			detail_href_list.extend(iter_href_list)
 			time.sleep(0.1) # sleep 100ms
 			print('extend detail_href_list by %d links'%(len(detail_href_list)))
