@@ -19,28 +19,28 @@ class db_avgirls_helper:
 		print link_href_list
 	"""
 	#private:
-	_dbname = ""
-	
+	dbname = ""
+
 	def __init__(self, dbname):
-		self._dbname = dbname
+		self.dbname = dbname
 		self.create_db()
 
 	def create_db(self):
-		conn = sqlite3.connect(self._dbname)
+		conn = sqlite3.connect(self.dbname)
 		# Create table
 		conn.execute('''create table if not exists detail_link(link_id text PRIMARY KEY, link_href text, link_pic buffer)''')
 		# Save (commit) the changes
 		conn.commit()
 		# We can also close the cursor if we are done with it
 		conn.close()
-	
+
 	def get_all_link_href(self):
-		conn = sqlite3.connect(self._dbname)
+		conn = sqlite3.connect(self.dbname)
 		link_href_list = [row[0] for row in conn.execute('''select link_href from detail_link''')]
 		return link_href_list
-	
+
 	def update_detail_link_table(self, row_list):
-		conn = sqlite3.connect(self._dbname)
+		conn = sqlite3.connect(self.dbname)
 		conn.executemany('''replace into detail_link(link_id, link_href, link_pic) values(?, ?, ?)''', row_list)
 		conn.commit()
 		conn.close()
