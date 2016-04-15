@@ -7,6 +7,12 @@ from producer_customer import producer, customer, mediator
 spider_op = spider_index_detail()
 
 class index_spider(producer):
+    '''A spider crawls index pages, fills the job queue with detail pages href.
+        jobq, job queue
+        sindex, start page index
+        eindex, end page index
+        web_page, the web page object providing url functions
+    '''
 
     def __init__(self, name, jobq, sindex, eindex, web_page):
         producer.__init__(self, name, jobq)
